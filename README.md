@@ -51,26 +51,19 @@ Your Notion database must have these properties:
 - **Github** (URL or Rich Text type): GitHub repository URL
 - **Github stars** (Number type): Star count (will be updated by the script)
 
-### 3. Set Environment Variables (Optional)
+### 3. Set Environment Variables
 
-Create a `.env` file in the project root or set environment variables:
+Copy `.env.example` to `.env`, then fill in your values (or set environment variables directly):
 
 ```bash
 # Required: Your Notion Integration Token
 NOTION_TOKEN=your_notion_token_here
 
+# Required: Your Notion Database ID
+DATABASE_ID=your_database_id_here
+
 # Optional: Your GitHub Personal Access Token (for higher rate limits)
 GITHUB_TOKEN=your_github_token_here
-```
-
-If `NOTION_TOKEN` is not set, the script will prompt you to enter it interactively.
-
-### 4. Set Your Database ID
-
-Edit `main.py` and set your `DATABASE_ID`:
-
-```python
-DATABASE_ID = "your_database_id_here"
 ```
 
 To find your database ID:
@@ -195,6 +188,9 @@ These can typically be ignored (e.g., non-GitHub URLs in your database).
 These may need attention to fix invalid URLs or API issues.
 
 ## Troubleshooting
+
+**"Missing required environment variables" error**
+- Ensure `NOTION_TOKEN` and `DATABASE_ID` are set in `.env` or shell environment
 
 **"Cannot get data_source_id" error**
 - Verify your `DATABASE_ID` is correct
