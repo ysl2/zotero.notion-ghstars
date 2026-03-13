@@ -59,6 +59,14 @@ class TestGithubFallbackHelpers(unittest.TestCase):
         text = "paper page, code: https://github.com/foo/bar and more text"
         self.assertEqual(main.find_github_url_in_text(text), "https://github.com/foo/bar")
 
+    def test_find_github_url_in_text_strips_trailing_punctuation(self):
+        text = "official code (https://github.com/foo/bar.), mirror https://github.com/baz/qux,"
+        self.assertEqual(main.find_github_url_in_text(text), "https://github.com/foo/bar")
+
+    def test_minor_skip_reason_includes_unsupported_and_alphaxiv_failures(self):
+        self.assertTrue(main.is_minor_skip_reason("Unsupported Github field content"))
+        self.assertTrue(main.is_minor_skip_reason("AlphaXiv lookup failed: HTTP error (500)"))
+
     def test_extract_arxiv_id_from_url(self):
         self.assertEqual(main.extract_arxiv_id_from_url("https://arxiv.org/abs/2601.22135"), "2601.22135")
         self.assertEqual(main.extract_arxiv_id_from_url("https://arxiv.org/pdf/2601.22135"), "2601.22135")

@@ -119,10 +119,11 @@ def find_github_url_in_text(text: str):
     if not text or not isinstance(text, str):
         return None
 
-    pattern = r'https?://(?:www\.)?github\.com/[\w.-]+/[\w.-]+(?:\.git)?/?'
+    pattern = r'https?://(?:www\.)?github\.com/[\w.-]+/[\w.-]+(?:\.git)?/?[),.;:!?]*'
     matches = re.findall(pattern, text, flags=re.IGNORECASE)
     for match in matches:
-        normalized = normalize_github_url(match)
+        cleaned = match.rstrip('),.;:!?')
+        normalized = normalize_github_url(cleaned)
         if normalized:
             return normalized
     return None
@@ -230,12 +231,23 @@ def get_github_headers(github_token: str):
 
 
 # 不重要的跳过原因（显示为灰色）
-MINOR_SKIP_REASONS = {'Invalid Github URL format', 'No Github URL found', 'Cannot extract owner/repo'}
+MINOR_SKIP_REASONS = {
+    'Invalid Github URL format',
+    'No Github URL found',
+    'Cannot extract owner/repo',
+    'Unsupported Github field content',
+    'No abstract text found',
+    'No Github URL found in abstract',
+    'No arXiv ID found for AlphaXiv lookup',
+    'No Github URL found in AlphaXiv',
+    'Discovered URL is not a valid GitHub repository',
+}
+MINOR_SKIP_REASON_PREFIXES = ('AlphaXiv lookup failed:',)
 
 
 def is_minor_skip_reason(reason: str) -> bool:
     """判断是否是不重要的跳过原因"""
-    return reason in MINOR_SKIP_REASONS
+    return reason in MINOR_SKIP_REASONS or any(reason.startswith(prefix) for prefix in MINOR_SKIP_REASON_PREFIXES)
 
 
 class RateLimiter:
