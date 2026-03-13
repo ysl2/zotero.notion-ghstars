@@ -87,6 +87,102 @@ def get_current_stars_from_page(page):
     return None
 
 
+def classify_github_value(value):
+    """将 Github 字段分类为 valid_github / empty / wip / other"""
+    if value is None:
+        return 'empty'
+
+    if not isinstance(value, str):
+        value = str(value)
+
+    normalized = value.strip()
+    if not normalized:
+        return 'empty'
+    if normalized.lower() == 'wip':
+        return 'wip'
+    if is_valid_github_repo_url(normalized):
+        return 'valid_github'
+    return 'other'
+
+
+def normalize_github_url(url: str):
+    """标准化 GitHub 仓库 URL，统一为 https://github.com/owner/repo"""
+    result = extract_owner_repo(url)
+    if not result:
+        return None
+    owner, repo = result
+    return f'https://github.com/{owner}/{repo}'
+
+
+def find_github_url_in_text(text: str):
+    """从任意文本中提取第一个合法的 GitHub 仓库 URL"""
+    if not text or not isinstance(text, str):
+        return None
+
+    pattern = r'https?://(?:www\.)?github\.com/[\w.-]+/[\w.-]+(?:\.git)?/?'
+    matches = re.findall(pattern, text, flags=re.IGNORECASE)
+    for match in matches:
+        normalized = normalize_github_url(match)
+        if normalized:
+            return normalized
+    return None
+
+
+def get_text_from_property(prop: dict):
+    """从 Notion property 中提取文本值（若可表示为文本）"""
+    if not isinstance(prop, dict):
+        return None
+
+    prop_type = prop.get('type')
+    if prop_type in {'rich_text', 'title'}:
+        items = prop.get(prop_type, [])
+        parts = [item.get('plain_text', '') for item in items if item.get('plain_text')]
+        return ''.join(parts) or None
+    if prop_type == 'url':
+        return prop.get('url') or None
+    if prop_type == 'formula':
+        formula = prop.get('formula', {})
+        if formula.get('type') == 'string':
+            return formula.get('string') or None
+    return None
+
+
+ABSTRACT_PROPERTY_CANDIDATES = ('Abstract', 'Summary', 'TL;DR', 'Notes')
+ARXIV_PROPERTY_CANDIDATES = ('Arxiv', 'arXiv', 'Paper URL', 'URL', 'Link')
+
+
+def get_abstract_text_from_page(page: dict):
+    """从页面候选属性中提取摘要文本"""
+    properties = page.get('properties', {})
+    for name in ABSTRACT_PROPERTY_CANDIDATES:
+        value = get_text_from_property(properties.get(name, {}))
+        if value and value.strip():
+            return value.strip()
+    return None
+
+
+def extract_arxiv_id_from_url(url: str):
+    """从 arXiv URL 中提取 arXiv ID"""
+    if not url or not isinstance(url, str):
+        return None
+
+    match = re.search(r'arxiv\.org/(?:abs|pdf)/([0-9]{4}\.[0-9]{4,5})(?:v\d+)?(?:\.pdf)?', url, re.IGNORECASE)
+    if match:
+        return match.group(1)
+    return None
+
+
+def get_arxiv_id_from_page(page: dict):
+    """从页面候选属性中提取 arXiv ID"""
+    properties = page.get('properties', {})
+    for name in ARXIV_PROPERTY_CANDIDATES:
+        value = get_text_from_property(properties.get(name, {}))
+        arxiv_id = extract_arxiv_id_from_url(value) if value else None
+        if arxiv_id:
+            return arxiv_id
+    return None
+
+
 def get_page_title(page):
     """获取页面标题"""
     title_prop = page.get('properties', {}).get('Name', {})

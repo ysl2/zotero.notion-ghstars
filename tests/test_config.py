@@ -18,6 +18,10 @@ class _DummyAsyncClient:
 notion_client_stub.AsyncClient = _DummyAsyncClient
 sys.modules.setdefault("notion_client", notion_client_stub)
 
+dotenv_stub = types.ModuleType("dotenv")
+dotenv_stub.load_dotenv = lambda *args, **kwargs: None
+sys.modules.setdefault("dotenv", dotenv_stub)
+
 # Prevent interactive prompt on import for legacy code path.
 os.environ.setdefault("NOTION_TOKEN", "test-notion-token")
 
@@ -40,6 +44,57 @@ class TestConfigLoading(unittest.TestCase):
         self.assertEqual(cfg["notion_token"], "notion_xxx")
         self.assertEqual(cfg["github_token"], "ghp_xxx")
         self.assertEqual(cfg["database_id"], "db_123")
+
+
+class TestGithubFallbackHelpers(unittest.TestCase):
+    def test_classify_github_value(self):
+        self.assertEqual(main.classify_github_value(None), "empty")
+        self.assertEqual(main.classify_github_value("   "), "empty")
+        self.assertEqual(main.classify_github_value("WIP"), "wip")
+        self.assertEqual(main.classify_github_value(" wIp "), "wip")
+        self.assertEqual(main.classify_github_value(" https://github.com/owner/repo "), "valid_github")
+        self.assertEqual(main.classify_github_value("https://example.com/project"), "other")
+
+    def test_find_github_url_in_text(self):
+        text = "paper page, code: https://github.com/foo/bar and more text"
+        self.assertEqual(main.find_github_url_in_text(text), "https://github.com/foo/bar")
+
+    def test_extract_arxiv_id_from_url(self):
+        self.assertEqual(main.extract_arxiv_id_from_url("https://arxiv.org/abs/2601.22135"), "2601.22135")
+        self.assertEqual(main.extract_arxiv_id_from_url("https://arxiv.org/pdf/2601.22135"), "2601.22135")
+        self.assertIsNone(main.extract_arxiv_id_from_url("https://example.com/paper"))
+
+    def test_get_text_from_property(self):
+        rich_text_property = {
+            "type": "rich_text",
+            "rich_text": [{"plain_text": "summary text"}],
+        }
+        title_property = {
+            "type": "title",
+            "title": [{"plain_text": "title text"}],
+        }
+        formula_property = {
+            "type": "formula",
+            "formula": {"type": "string", "string": "formula text"},
+        }
+        url_property = {
+            "type": "url",
+            "url": "https://arxiv.org/abs/2601.22135",
+        }
+
+        self.assertEqual(main.get_text_from_property(rich_text_property), "summary text")
+        self.assertEqual(main.get_text_from_property(title_property), "title text")
+        self.assertEqual(main.get_text_from_property(formula_property), "formula text")
+        self.assertEqual(main.get_text_from_property(url_property), "https://arxiv.org/abs/2601.22135")
+
+    def test_get_abstract_text_from_page_prefers_known_fields(self):
+        page = {
+            "properties": {
+                "Notes": {"type": "rich_text", "rich_text": [{"plain_text": "notes text"}]},
+                "Abstract": {"type": "rich_text", "rich_text": [{"plain_text": "abstract text"}]},
+            }
+        }
+        self.assertEqual(main.get_abstract_text_from_page(page), "abstract text")
 
 
 if __name__ == "__main__":
